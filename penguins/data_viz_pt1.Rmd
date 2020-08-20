@@ -1,0 +1,388 @@
+---
+title: "R-Ladies Santa Barbara - Data Viz (Part 1!) - complete code handout"
+author: "An Bui, Sam Csik, Juliette Verstaen"
+date: "19 August 2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###**Summary**
+
+We'll be walking through the components necessary for constructing a basic ggplot, and also delve into some cool features for elevating the aesthetics of your plots.
+
+You can access many of the online resources we referenced while creating these plots (plus lots of great ggplot2 information, examples, etc.) in our Google Slides: https://docs.google.com/presentation/d/1sU2H89F5e409WpYilRqYAqu7DdXSAivccEa4y44xZ7c/edit?usp=sharing 
+
+*NOTE: Normally, you should take a critical look at your data, determine why NAs exist and if they might bias your results...we're skipping that part here and just omitting any NAs for the sake of time. But for when you do explore NAs, we suggest checking out the `naniar` package*
+
+###**Outline**
+
+**Part 0.** Load packages
+**Part 1.** Juliette - Basic ggplot(), putting the legend in the title, and themes
+**Part 2.** An - Putting your ggplot() into a function, grids
+**Part 3.** Sam - Plotting summary stats using `stat_summary()`
+
+####**Part 0.** Load packages & explore ata
+```{r}
+# load packages
+library(palmerpenguins) 
+library(tidyverse)
+library(ggtext) 
+library(hrbrthemes)
+library(patchwork)
+library(ggimage)
+library(rlang)
+
+# take a look at what we're working with - always good to do this before jumping into plot creation!
+# what are the variables? classes? any NAs? Why are there NAs and will these bias your results?
+View(penguins)
+summary(penguins)
+```
+
+#####################################################
+####**Part 1.** Juliette
+#####################################################
+
+We're going to create a scatter plot.
+
+The main steps I take when creating a plot:
+1. Choose the type of plot you want and the aesthetics needed to make it happen
+2. Labels
+3. Make it look pretty! - for me this means: what the plot theme is, messing with things in the theme(), and playing with colors
+
+Then I’m going to show you how to represent your legend colors in the title and some plot themes from the package ‘hrbrthemes’
+
+```{r create scatter}
+
+ggplot(na.omit(penguins)) +
+   
+   ## 1. Choose your plot and aesthetics
+   geom_point(aes(x = body_mass_g, y = flipper_length_mm, color = species, shape = island), size = 2) +
+   
+   ## 2. Label all the things
+   labs(x = "Body Mass (g)",
+        y = "Flipper Length (mm)",
+        title = "Exploring Palmer Station Penguins",
+        subtitle = "Dimensions and Attributes",
+        caption = "Data Source: Dr. Kristen Gorman LTER Palmer Station \nCreated for RLadies SB workshop",
+        shape = "Island",
+        color = "Species") +
+   
+   ## 3a. Built in theme
+   theme_minimal() +
+   
+   ## 3b. Editing the labels aesthetics
+   theme(plot.title = element_text(color = "black", size = 18, face = "bold", hjust = 0.5),
+         plot.subtitle = element_text(color = "gray41", size = 14, face = "bold", hjust = 0.5),
+         plot.caption = element_text(color = "gray65", face = "italic"),
+         axis.title.x = element_text(size = 15),
+         axis.title.y = element_text(size = 15)) +
+   
+   ## 3c. Change colors
+   scale_colour_manual(values =  c("darkorange", "purple", "cyan4")) +
+   
+   ## 3d. Faceting
+   #facet_wrap(vars(island)) 
+   facet_grid(cols = vars(sex), rows = vars(island))
+
+```
+
+Now we are going to make the same plot incorporating the legend into the title and a pretty new theme!!
+
+```{r create prettier scatter}
+
+ggplot(na.omit(penguins)) +
+ 
+   ## 1. Choose your plot and aesthetics
+   geom_point(aes(x = body_mass_g, y = flipper_length_mm, color = species)) +
+   
+  ## 3c. Change colors
+   scale_colour_manual(values =   c("darkorange", "purple", "cyan4")) +
+  
+   ## 2. Label all the things
+   labs(x = "Body Mass (g)",
+        y = "Flipper Length (mm)",
+        
+        ## use html/markdown style to code the colors into the title
+        ## title : "Dimensions for adelie, chinstrap, and gentoos penguins"
+        ## We need to tell ggplot that:  html format text is coming up, what we want that text to look like, what the text says, and that html format text is over
+        title = "Dimensions for <b style='color:darkorange'>adelie,</b> <b style='color:purple'>chinstrap,</b> and <b style='color:cyan4'>gentoos</b> penguins",
+        
+        caption = "Data Source: Dr. Kristen Gorman LTER Palmer Station \nCreated for RLadies SB workshop") +
+   
+  ## 3a. Choose an 'hrbrthemes' theme need to do this before theme() because need to override
+  # theme_ipsum_rc() +
+  
+   ## 3b. Editing the labels aesthetics
+   theme(plot.title = element_markdown(hjust = 0.5, size = 15),
+         plot.caption = element_text(color = "gray65", face = "italic", size = 8),
+         legend.position = "none") +
+
+   ## 3d. Faceting
+   facet_grid(cols = vars(sex), rows = vars(island)) 
+
+```
+
+#####################################################
+####**Part 2.** An
+#####################################################
+
+We'll start with a standard plot, with counts as a function of years.
+
+```{r}
+# calculating counts per year per penguin species
+penguin_counts <- penguins %>% 
+  group_by(year, species) %>% 
+  summarize(counts = length(species))
+# look at the structure of this data frame!
+
+# note that year has to be as.numeric
+ggplot(penguin_counts, aes(x = as.numeric(year), y = counts)) +
+  # geom point is the dots
+  geom_point(aes(color = species), size = 5) +
+  # geom_line is the lines between dots
+  geom_line(aes(color = species), size = 1, alpha = 0.8) +
+  
+  # changing the scale of the x-axis
+  scale_x_continuous(breaks = c(2007, 2008, 2009)) +
+  
+  # putting in colors
+  scale_color_manual(values = c("darkorange", "purple", "cyan4")) + 
+  
+  # informative labels
+  labs(x = "Year", 
+       y = "Counts",
+       title = "Counts per year of Adelie, Chinstrap, and Gentoo penguins",
+       caption = "Data Source: Dr. Kristen Gorman, LTER Palmer Station",
+       color = "Species") +
+  
+  # a clean theme
+  theme_ipsum()
+```
+
+Now, we're going to make a plot I just learned about called a "lollipop plot." This is a similar plot to a column/bar graph, but it's especially useful when you have many columns/bars. I'm going to make them here, because I think they're fun. However, you can look at some real examples of actually useful visualizations at the [R Graph Gallery](https://www.r-graph-gallery.com/lollipop-plot.html).
+
+There are two packages that you can use here: the first is [ggimage](https://github.com/GuangchuangYu/ggimage), which allows you to insert images into your ggplots. The second is [patchwork](https://github.com/thomasp85/patchwork), which allows you to arrange plots in the layouts of your choosing.
+
+First, we'll get a data frame together.
+```{r}
+penguin_counts_island <- penguins %>% 
+  group_by(year, island, species) %>% 
+  summarize(counts = length(year)) %>% 
+  # adding a column of image file names for later
+  mutate(penguin_image = case_when(
+    species == "Chinstrap" ~ "penguins/chinstrap.png",
+    species == "Gentoo" ~ "penguins/gentoo.png",
+    species == "Adelie" ~ "penguins/adelie.png"
+  )) 
+```
+
+Then, we're going to make a function to plot. I do this a lot when I'm exploring my data and I'm making a lot of plots that basically have the same layout but with some minor differences. 
+
+```{r}
+# the function takes 3 arguments: island, species, and color
+island_spp <- function(which_island, which_species, which_color) {
+  # same idea as a normal ggplot function, except now you're making your own!
+  # step 1. filter the data frame to only include the island and species of interest
+  ggplot(penguin_counts_island %>% filter(island == {{ which_island }} & species == {{ which_species }}), 
+         # set the x and y axes
+         aes(x = as.factor(year), y = counts)) +
+    
+    # the segment is the "stick" of the lollipop - note the start and end
+    geom_segment(aes(x = as.factor(year), xend = as.factor(year), y = 0, yend = counts), color = {{ which_color }}, size = 2) +
+    
+    # the image is the candy part!
+    geom_image(aes(image = penguin_image), size = 0.1) +
+    
+    # labels
+    labs(title = paste(which_island, which_species, sep = " - "),
+         x = "Year",
+         y = "Counts") +
+    
+    # theme
+    theme_classic()
+}
+```
+
+Now, we're ready to plot!
+
+```{r}
+biscoe_adelie <- island_spp("Biscoe", "Adelie", "darkorange") +
+  scale_y_continuous(limits = c(0, 20))
+biscoe_adelie
+
+biscoe_gentoo <- island_spp("Biscoe", "Gentoo", "cyan4")
+biscoe_gentoo
+
+torgersen_adelie <- island_spp("Torgersen", "Adelie", "darkorange") +
+  scale_y_continuous(limits = c(0, 22))
+torgersen_adelie 
+
+dream_adelie <- island_spp("Dream", "Adelie", "darkorange") +
+  scale_y_continuous(limits = c(0, 22))
+dream_adelie
+
+dream_chinstrap <- island_spp("Dream", "Chinstrap", "purple") +
+  scale_y_continuous(limits = c(0, 29))
+dream_chinstrap
+
+# now put everything together with patchwork!
+grid <- (biscoe_adelie + biscoe_gentoo) /
+        (dream_adelie + dream_chinstrap) /
+        (torgersen_adelie + plot_spacer()) +
+  # add plot labels
+  plot_annotation(tag_levels = "a", tag_suffix = ")")
+
+grid
+```
+
+#####################################################
+####**Part 3.** Sam
+#####################################################
+
+I usually love seeing both the raw data and summary statistics plotted together on the same figure. Here, we'll walk through how to do just that. There are two general approaches:
+
+(1) calculate summary stats and save to a new data frame; plot raw data from original data frame and layer on summary stats from the new data frame -- this tends to require **more** code
+
+(2) use the `stat_summary()` function within ggplot to simultaneously calculate and plot summary stats 
+
+We'll recreate the same figure using both approaches.
+
+*Apporach 1* Longer way: Summarize data for plotting, then construct figure 
+```{r}
+##############################
+# summarize body mass data (mean, max, min)
+##############################
+
+bm_summary <- penguins %>% 
+  drop_na() %>%
+  group_by(species, sex) %>% 
+  summarize(
+    mean = mean(body_mass_g),
+    sd = sd(body_mass_g)
+  )
+
+##############################
+# plot
+##############################
+
+ggplot() +
+  
+  # plot raw data
+  geom_point(data = na.omit(penguins), aes(x = species, y = body_mass_g, shape = sex), 
+             alpha = 0.2, 
+             position = position_jitterdodge(dodge.width = 0.8)) +
+  
+  # layer on summary stats
+  geom_errorbar(data = bm_summary, aes(x = species, ymin = mean - sd, ymax = mean + sd, color = species, group = sex), 
+                width = 0.1, size = 1,
+                position = position_dodge(width = 0.8)) +
+  geom_point(data = bm_summary, aes(x = species, y = mean, shape = sex, color = species),
+             size = 4,
+             position = position_dodge(width = 0.8)) +
+  
+  # manually adjust colors and shapes (gotta reflect what's up )
+  scale_color_manual(values = c("darkorange", "purple", "cyan4"), guide = FALSE) + # set `guide = FALSE` to omit from legend
+  scale_shape_manual(values = c(15, 16), name = "Sex") + # set `name =` to change legend title
+  
+  # add nicer axis labels + caption
+  labs(x = "Penguin Species", 
+       y = "Body Mass (g)",
+       title = "Body mass of female vs. male <b style='color:darkorange'>adelie,</b> <b style='color:purple'>chinstrap,</b> and <b style='color:cyan4'>gentoo</b> penguins",
+       subtitle = "Colored points represent mean body mass (± SD)",
+       caption = "Data Source: Dr. Kristen Gorman, LTER Palmer Station") +
+  
+  # now fun with themes!
+  theme_ipsum(grid = FALSE) +
+  theme(
+        # text
+        plot.title = element_markdown(hjust = 0, size = 13),
+        axis.text = element_text(color = "black", size = 10),
+        axis.title = element_text(size = 14),
+        plot.caption = element_text(size = 7, hjust = 1, color = "gray", face = "italic"),
+        # plot
+        panel.border = element_rect(colour = "black", size = 0.7, fill = NA), 
+        # legend
+        legend.position = c(0.12, 0.85), # (right/left, top/bottom)
+        legend.box.background = element_rect(color = "black")
+        ) 
+```
+
+*Approach 2* Shortcut using `stat_summary()`; benefits: (a) no need to create a second df with summary stats, (b) only need to set overall aesthetics once in the ggplot() function
+```{r}
+##############################
+# plot
+##############################
+
+# plot raw data
+ggplot(data = na.omit(penguins), aes(x = species, y = body_mass_g, shape = sex)) +
+  geom_point(alpha = 0.2, position = position_jitterdodge(dodge.width = 0.8)) + 
+  
+  # calculate and layer on summary stats (mean +/- sd)
+  stat_summary(mapping = aes(color = species),
+               fun = "mean", geom = "point", size = 4,
+               position = position_dodge(width = 0.8)) +
+  stat_summary(mapping = aes(color = species),
+               fun = "mean", geom = "errorbar", size = 1, width = 0.2,
+               fun.max = function(x) mean(x) + sd(x),
+               fun.min = function(x) mean(x) - sd(x),
+               position = position_dodge(width = 0.8)) +
+  
+  # manually adjust colors and shapes
+  scale_color_manual(values = c("darkorange", "purple", "cyan4"), guide = FALSE) + # set `guide = FALSE` to omit from legend
+  scale_shape_manual(values = c(15, 16), name = "Sex") + # set `name =` to change legend title
+  
+  # add nicer axis labels + title + caption
+  labs(x = "Penguin Species", 
+       y = "Body Mass (g)",
+       title = "Body mass of female vs. male adelie, chinstrap, and gentoo penguins",
+       subtitle = "Colored points represent mean body mass (± SD)",
+       caption = "Data Source: Dr. Kristen Gorman, LTER Palmer Station") +
+  
+  ########################
+  # theme option 1 (basic ggplot)
+  ########################
+  theme_classic() + # built-in theme
+  theme(
+        # text
+        plot.title = element_text(hjust = 0, size = 14),
+        axis.text = element_text(color = "black", size = 10),
+        axis.title = element_text(color = "black", size = 14),
+        plot.caption = element_text(size = 7, hjust = 1, color = "gray", face = "italic"),
+
+        # plot
+        panel.border = element_rect(color = "black", size = 0.7, fill = NA),
+
+        # legend
+        legend.position = c(0.12, 0.85), # c(right/left, top/bottom)
+        legend.box.background = element_rect(color = "black"))
+
+  ########################
+  # theme option 2 (a little bit fancier)
+  ########################
+  # theme_ipsum(grid = FALSE) + # from hrbrthemes package
+  # theme(
+  #       # text
+  #       plot.title = element_markdown(hjust = 0, size = 13),
+  #       plot.caption = element_text(size = 7, hjust = 1, color = "gray", face = "italic"),
+  # 
+  #       # plot
+  #       panel.border = element_rect(colour = "black", size = 0.7, fill = NA),
+  # 
+  #       # legend
+  #       legend.position = c(0.12, 0.85), # c(right/left, top/bottom)
+  #       legend.box.background = element_rect(color = "black"))
+
+# title for use with ggtext() : "Body mass of female vs. male <b style='color:darkorange'>adelie,</b> <b style='color:purple'>chinstrap,</b> and <b style='color:cyan4'>gentoo</b> penguins"
+
+########################
+# Optional: save your plot as a .jpg, .pdf, etc. using ggsave()
+########################
+
+# ggsave(plot = SC_simple, here::here("plots", "SC_simple.jpg"), width = 7, height = 7)
+```
+
